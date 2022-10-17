@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use anyhow::Result;
 
-mod file_matcher;
+pub mod file_matcher;
 
 #[async_trait]
 pub trait LineMatcher {

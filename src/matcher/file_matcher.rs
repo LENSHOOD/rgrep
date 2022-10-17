@@ -28,7 +28,8 @@ impl LineMatcher for TextFileLineMatcher {
 }
 
 impl TextFileLineMatcher {
-    pub fn new(path: &str) -> Result<TextFileLineMatcher> {
+    pub async fn new(path: &str) -> Result<TextFileLineMatcher> {
+        let _ = File::open(path).await?;
         Ok(TextFileLineMatcher {
             text_file_path: path.to_string(),
         })
@@ -55,7 +56,7 @@ Text End"#;
             .unwrap();
 
         // when
-        let matcher = TextFileLineMatcher::new(path);
+        let matcher = TextFileLineMatcher::new(path).await;
 
         // then
         assert!(matcher.is_ok());
@@ -72,7 +73,7 @@ Text End"#;
             .unwrap();
 
         // when
-        let matcher = TextFileLineMatcher::new(path).unwrap();
+        let matcher = TextFileLineMatcher::new(path).await.unwrap();
         let vec = matcher.match_line("Matcher".into()).await.unwrap();
 
         // then
