@@ -18,9 +18,11 @@ impl LineMatcher for TextFileLineMatcher {
         let mut lines = reader.lines();
 
         let mut res = Vec::<String>::new();
+        let mut line_cnt = 0;
         while let Some(line) = lines.next_line().await? {
+            line_cnt += 1;
             if is_match_regex(pattern.as_str(), line.as_str())? {
-                res.push(line);
+                res.push(format!("{}: {}", line_cnt, line));
             }
         }
 
@@ -87,7 +89,7 @@ Text End"#;
 
         // then
         assert_eq!(vec.len(), 1);
-        assert_eq!(vec[0], "File Line Matcher");
+        assert_eq!(vec[0], "3: File Line Matcher");
         tokio::fs::remove_file(path).await.unwrap()
     }
 
@@ -102,13 +104,14 @@ Text End"#;
 
         // when
         let matcher = TextFileLineMatcher::new(path).await.unwrap();
-        let pattern = r"([\d]+)|([\[].+[\]])";
+        let pattern = r"([\d]+)|([\[].+[\]])|([\u4e00-\u9fa5])";
         let vec = matcher.match_line(pattern.into()).await.unwrap();
 
         // then
-        assert_eq!(vec.len(), 2);
-        assert_eq!(vec[0], "Numbers: 1, 2, 3.456");
-        assert_eq!(vec[1], "Match Brackets: [in_the_bracket1233456]");
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[0], "2: Numbers: 1, 2, 3.456");
+        assert_eq!(vec[1], "4: 多语言");
+        assert_eq!(vec[2], "5: Match Brackets: [in_the_bracket1233456]");
         tokio::fs::remove_file(path).await.unwrap()
     }
 }
