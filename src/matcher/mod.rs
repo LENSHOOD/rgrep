@@ -5,5 +5,11 @@ pub mod file_matcher;
 
 #[async_trait]
 pub trait LineMatcher {
-    async fn match_line(&self, pattern: String) -> Result<Vec<String>>;
+    async fn match_line(&self, pattern: String) -> Result<Vec<MatchedLine>>;
+}
+
+pub struct MatchedLine {
+    pub content: String,
+    pub line_no: u64,
+    pub word_idx: u64
 }

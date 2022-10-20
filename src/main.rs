@@ -32,7 +32,7 @@ async fn main() {
         exit(1);
     }
 
-    for line in result.unwrap() {
-        println!("{}", line)
+    for matched in result.unwrap() {
+        println!("{}:{} {}", matched.line_no, matched.word_idx, matched.content)
     }
 }
