@@ -1,9 +1,14 @@
-mod matcher;
-
 use std::process::exit;
+
 use clap::Parser;
+
 use crate::matcher::file_matcher::TextFileLineMatcher;
 use crate::matcher::LineMatcher;
+use crate::writer::printer::ColoredPrinter;
+use crate::writer::Writer;
+
+mod matcher;
+mod writer;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -32,7 +37,6 @@ async fn main() {
         exit(1);
     }
 
-    for matched in result.unwrap() {
-        println!("{}:{} {}", matched.line_no, matched.word_idx, matched.content)
-    }
+    ColoredPrinter::write_all(result.unwrap())
+        .unwrap_or_else(|e| println!("Err: {}", e))
 }
