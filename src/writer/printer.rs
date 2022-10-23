@@ -9,7 +9,7 @@ impl Writer for ColoredPrinter{
         for matched in lines {
             println!("{}:{} {}",
                      format!("{}", matched.line_no).blue(),
-                     format!("{}", matched.word_idx).blue(),
+                     format!("{}", matched.first_word_start).blue(),
                      format!("{}", matched.content)
             )
         }

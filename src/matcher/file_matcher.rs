@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use regex::Regex;
+use regex::{Match, Regex};
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -21,11 +21,13 @@ impl LineMatcher for TextFileLineMatcher {
         let mut line_cnt = 0;
         while let Some(line) = lines.next_line().await? {
             line_cnt += 1;
-            if is_match_regex(pattern.as_str(), line.as_str())? {
+            let match_result = match_regex(pattern.as_str(), line.as_str())?;
+            if match_result.is_some() {
                 res.push(MatchedLine {
-                    content: line,
+                    content: line.clone(),
                     line_no: line_cnt,
-                    word_idx: 0
+                    first_word_start: match_result.unwrap().start() as u64,
+                    first_word_end: match_result.unwrap().end() as u64,
                 });
             }
         }
@@ -34,9 +36,9 @@ impl LineMatcher for TextFileLineMatcher {
     }
 }
 
-fn is_match_regex(pattern: &str, to_be_matched: &str) -> Result<bool> {
+fn match_regex<'a>(pattern: &str, to_be_matched: &'a str) -> Result<Option<Match<'a>>> {
     let regex = Regex::new(pattern)?;
-    Ok(regex.is_match(to_be_matched))
+    Ok(regex.find(to_be_matched))
 }
 
 impl TextFileLineMatcher {
@@ -95,7 +97,8 @@ Text End"#;
         assert_eq!(vec.len(), 1);
         assert_eq!(vec[0].content, "File Line Matcher");
         assert_eq!(vec[0].line_no, 3);
-        assert_eq!(vec[0].word_idx, 0);
+        assert_eq!(vec[0].first_word_start, 10);
+        assert_eq!(vec[0].first_word_end, 17);
         tokio::fs::remove_file(path).await.unwrap()
     }
 
@@ -117,13 +120,16 @@ Text End"#;
         assert_eq!(vec.len(), 3);
         assert_eq!(vec[0].content, "Numbers: 1, 2, 3.456");
         assert_eq!(vec[0].line_no, 2);
-        assert_eq!(vec[0].word_idx, 0);
+        assert_eq!(vec[0].first_word_start, 9);
+        assert_eq!(vec[0].first_word_end, 10);
         assert_eq!(vec[1].content, "多语言");
         assert_eq!(vec[1].line_no, 4);
-        assert_eq!(vec[1].word_idx, 0);
+        assert_eq!(vec[1].first_word_start, 0);
+        assert_eq!(vec[1].first_word_end, 3);
         assert_eq!(vec[2].content, "Match Brackets: [in_the_bracket1233456]");
         assert_eq!(vec[2].line_no, 5);
-        assert_eq!(vec[2].word_idx, 0);
+        assert_eq!(vec[2].first_word_start, 16);
+        assert_eq!(vec[2].first_word_end, 39);
         tokio::fs::remove_file(path).await.unwrap()
     }
 }

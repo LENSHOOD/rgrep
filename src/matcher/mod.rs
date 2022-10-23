@@ -11,5 +11,6 @@ pub trait LineMatcher {
 pub struct MatchedLine {
     pub content: String,
     pub line_no: u64,
-    pub word_idx: u64
+    pub first_word_start: u64,
+    pub first_word_end: u64
 }
