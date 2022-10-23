@@ -7,10 +7,13 @@ pub struct ColoredPrinter {}
 impl Writer for ColoredPrinter{
     fn write_all(lines: Vec<MatchedLine>) -> anyhow::Result<()> {
         for matched in lines {
-            println!("{}:{} {}",
+            let chars = matched.content.chars().collect::<Vec<_>>();
+            println!("{}:{} {}{}{}",
                      format!("{}", matched.line_no).blue(),
-                     format!("{}", matched.first_word_start).blue(),
-                     format!("{}", matched.content)
+                     format!("{:<4}", matched.first_word_start).blue(),
+                     format!("{}", chars[0..matched.first_word_start].into_iter().collect::<String>()),
+                     format!("{}", chars[matched.first_word_start..matched.first_word_end].into_iter().collect::<String>()).red(),
+                     format!("{}", chars[matched.first_word_end..chars.len()].into_iter().collect::<String>()),
             )
         }
 

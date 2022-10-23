@@ -26,8 +26,8 @@ impl LineMatcher for TextFileLineMatcher {
                 res.push(MatchedLine {
                     content: line.clone(),
                     line_no: line_cnt,
-                    first_word_start: match_result.unwrap().start() as u64,
-                    first_word_end: match_result.unwrap().end() as u64,
+                    first_word_start: match_result.unwrap().start(),
+                    first_word_end: match_result.unwrap().end(),
                 });
             }
         }

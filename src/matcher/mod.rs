@@ -10,7 +10,7 @@ pub trait LineMatcher {
 
 pub struct MatchedLine {
     pub content: String,
-    pub line_no: u64,
-    pub first_word_start: u64,
-    pub first_word_end: u64
+    pub line_no: usize,
+    pub first_word_start: usize,
+    pub first_word_end: usize
 }
