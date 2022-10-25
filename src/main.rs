@@ -10,15 +10,14 @@ use crate::writer::Writer;
 mod matcher;
 mod writer;
 
+/// rgrep == grep by rust
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct GrepArgs {
-    // pattern for string to be matched
-    #[arg(short, long)]
+    /// pattern for string to be matched
     pattern: String,
 
-    // file to be grep
-    #[arg(short, long)]
+    /// file to be grep
     file: String
 }
 
