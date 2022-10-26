@@ -1,4 +1,5 @@
 use std::process::exit;
+use std::time::SystemTime;
 
 use clap::Parser;
 
@@ -18,7 +19,11 @@ struct GrepArgs {
     pattern: String,
 
     /// file to be grep
-    file: String
+    file: String,
+
+    /// debug mode to calculate running time elapse
+    #[arg(short, long)]
+    debug: bool
 }
 
 #[tokio::main]
@@ -30,6 +35,8 @@ async fn main() {
         exit(1);
     }
 
+    let start = SystemTime::now();
+
     let result = line_matcher.unwrap().match_line(args.pattern).await;
     if result.is_err() {
         println!("Err: {}", result.err().unwrap());
@@ -37,5 +44,10 @@ async fn main() {
     }
 
     ColoredPrinter::write_all(result.unwrap())
-        .unwrap_or_else(|e| println!("Err: {}", e))
+        .unwrap_or_else(|e| println!("Err: {}", e));
+
+    if args.debug {
+        let duration = start.elapsed().unwrap();
+        println!("Time elapsed: {} ms", duration.as_millis())
+    }
 }
