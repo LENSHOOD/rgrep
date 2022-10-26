@@ -1,8 +1,11 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use anyhow::Result;
 use async_trait::async_trait;
 use regex::{Match, Regex};
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::task::JoinHandle;
 
 use crate::matcher::{LineMatcher, MatchedLine};
 
@@ -18,17 +21,33 @@ impl LineMatcher for TextFileLineMatcher {
         let mut lines = reader.lines();
 
         let mut res = Vec::<MatchedLine>::new();
-        let mut line_cnt = 0;
+        let line_cnt = Arc::new(AtomicUsize::new(0));
+        let mut handles = Vec::<JoinHandle<Result<Option<MatchedLine>>>>::new();
         while let Some(line) = lines.next_line().await? {
-            line_cnt += 1;
-            let match_result = match_regex(pattern.as_str(), line.as_str())?;
-            if match_result.is_some() {
-                res.push(MatchedLine {
-                    content: line.clone(),
-                    line_no: line_cnt,
-                    first_word_start: match_result.unwrap().start(),
-                    first_word_end: match_result.unwrap().end(),
-                });
+            let l = line.clone();
+            let p = pattern.clone();
+            let lc = line_cnt.clone();
+            let handle: JoinHandle<Result<Option<MatchedLine>>> = tokio::task::spawn_blocking(move || {
+                let match_result = match_regex(p.as_str(), line.as_str())?;
+                if match_result.is_some() {
+                    return Ok(Some(MatchedLine {
+                        content: l.clone(),
+                        line_no: lc.clone().fetch_add(1, Ordering::SeqCst),
+                        first_word_start: match_result.unwrap().start(),
+                        first_word_end: match_result.unwrap().end(),
+                    }))
+                }
+
+                Ok(None)
+            });
+
+            handles.push(handle);
+        }
+
+        while let Some(handle) = handles.pop() {
+            let matched_lines = handle.await??;
+            if matched_lines.is_some() {
+                res.push(matched_lines.unwrap());
             }
         }
 
