@@ -1,8 +1,7 @@
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::cmp::Ordering::{Equal, Greater, Less};
 use anyhow::Result;
 use async_trait::async_trait;
-use regex::{Match, Regex};
+use regex::Regex;
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::task::JoinHandle;
@@ -20,30 +19,15 @@ impl LineMatcher for TextFileLineMatcher {
         let reader = BufReader::new(file);
         let mut lines = reader.lines();
 
-        let mut res = Vec::<MatchedLine>::new();
-        let line_cnt = Arc::new(AtomicUsize::new(0));
+        let mut line_cnt = 0;
         let mut handles = Vec::<JoinHandle<Result<Option<MatchedLine>>>>::new();
         while let Some(line) = lines.next_line().await? {
-            let l = line.clone();
-            let p = pattern.clone();
-            let lc = line_cnt.clone();
-            let handle: JoinHandle<Result<Option<MatchedLine>>> = tokio::task::spawn_blocking(move || {
-                let match_result = match_regex(p.as_str(), line.as_str())?;
-                if match_result.is_some() {
-                    return Ok(Some(MatchedLine {
-                        content: l.clone(),
-                        line_no: lc.clone().fetch_add(1, Ordering::SeqCst),
-                        first_word_start: match_result.unwrap().start(),
-                        first_word_end: match_result.unwrap().end(),
-                    }))
-                }
-
-                Ok(None)
-            });
-
-            handles.push(handle);
+            line_cnt += 1;
+            handles.push(
+                spawn_to_match(line, pattern.clone(), line_cnt));
         }
 
+        let mut res = Vec::<MatchedLine>::new();
         while let Some(handle) = handles.pop() {
             let matched_lines = handle.await??;
             if matched_lines.is_some() {
@@ -51,13 +35,33 @@ impl LineMatcher for TextFileLineMatcher {
             }
         }
 
+        res.sort_by(|left, right| {
+            if left.line_no < right.line_no {
+                return Less
+            } else if left.line_no > right.line_no {
+                return Greater
+            }
+
+            return Equal
+        });
+
         Ok(res)
     }
 }
 
-fn match_regex<'a>(pattern: &str, to_be_matched: &'a str) -> Result<Option<Match<'a>>> {
-    let regex = Regex::new(pattern)?;
-    Ok(regex.find(to_be_matched))
+fn spawn_to_match(line: String, pattern: String, curr_line_cnt: usize) -> JoinHandle<Result<Option<MatchedLine>>> {
+    tokio::task::spawn(async move {
+        if let Some(match_result) = Regex::new(pattern.as_str())?.find(line.as_str()) {
+            return Ok(Some(MatchedLine {
+                content: line.clone(),
+                line_no: curr_line_cnt,
+                first_word_start: match_result.start(),
+                first_word_end: match_result.end(),
+            }))
+        }
+
+        Ok(None)
+    })
 }
 
 impl TextFileLineMatcher {
