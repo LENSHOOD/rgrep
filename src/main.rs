@@ -1,7 +1,9 @@
-use std::process::exit;
+use std::fs;
 use std::time::SystemTime;
+use anyhow::Result;
 
 use clap::Parser;
+use colored::Colorize;
 
 use crate::matcher::file_matcher::TextFileLineMatcher;
 use crate::matcher::LineMatcher;
@@ -18,8 +20,8 @@ struct GrepArgs {
     /// pattern for string to be matched
     pattern: String,
 
-    /// file to be grep
-    file: String,
+    /// file to be grep, or dir to grep all files under that dir and sub dirs recursively
+    path: String,
 
     /// debug mode to calculate running time elapse
     #[arg(short, long)]
@@ -29,25 +31,37 @@ struct GrepArgs {
 #[tokio::main]
 async fn main() {
     let args = GrepArgs::parse();
-    let line_matcher = TextFileLineMatcher::new(args.file.as_ref()).await;
-    if line_matcher.is_err() {
-        println!("Err: {}", line_matcher.err().unwrap());
-        exit(1);
-    }
-
     let start = SystemTime::now();
 
-    let result = line_matcher.unwrap().match_line(args.pattern).await;
-    if result.is_err() {
-        println!("Err: {}", result.err().unwrap());
-        exit(1);
-    }
+    let mut path_container: Vec<String> = vec![args.path];
+    while let Some(curr) = path_container.pop() {
+        if fs::metadata(curr.clone()).unwrap().is_file() {
+            match grep_single_file(curr.clone(), args.pattern.clone()).await {
+                Ok(_) => {}
+                Err(err) => {println!("Err at {}: {}", curr.clone().green(), err)}
+            }
+            continue;
+        }
 
-    ColoredPrinter::write_all(args.file, result.unwrap())
-        .unwrap_or_else(|e| println!("Err: {}", e));
+        for entry in fs::read_dir(curr.clone()).unwrap() {
+            let path = entry.unwrap().path();
+            let path_of_string = path.clone().into_os_string().into_string().unwrap();
+            path_container.push(path_of_string)
+        }
+    }
 
     if args.debug {
         let duration = start.elapsed().unwrap();
         println!("Time elapsed: {} ms", duration.as_millis())
     }
+}
+
+async fn grep_single_file(file_path: String, pattern: String) -> Result<()> {
+    let line_matcher = TextFileLineMatcher::new(file_path.as_str()).await?;
+    let matched_lines = line_matcher.match_line(pattern).await?;
+    if matched_lines.is_empty() {
+        return Ok(())
+    }
+
+    ColoredPrinter::write_all(file_path, matched_lines)
 }
