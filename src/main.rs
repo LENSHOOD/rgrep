@@ -43,7 +43,7 @@ async fn main() {
         exit(1);
     }
 
-    ColoredPrinter::write_all(result.unwrap())
+    ColoredPrinter::write_all(args.file, result.unwrap())
         .unwrap_or_else(|e| println!("Err: {}", e));
 
     if args.debug {

@@ -5,10 +5,11 @@ use crate::writer::Writer;
 pub struct ColoredPrinter {}
 
 impl Writer for ColoredPrinter{
-    fn write_all(lines: Vec<MatchedLine>) -> anyhow::Result<()> {
+    fn write_all(relative_path: String, lines: Vec<MatchedLine>) -> anyhow::Result<()> {
+        println!("{}:", relative_path.green());
         for matched in lines {
             let chars = matched.content.chars().collect::<Vec<_>>();
-            println!("{}:{} {}{}{}",
+            println!("    {}:{} {}{}{}",
                      format!("{}", matched.line_no).blue(),
                      format!("{:<4}", matched.first_word_start).blue(),
                      format!("{}", chars[0..matched.first_word_start].into_iter().collect::<String>()),
