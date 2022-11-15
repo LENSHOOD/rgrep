@@ -1,4 +1,5 @@
-use std::fs;
+#![feature(async_closure)]
+
 use std::time::SystemTime;
 use anyhow::Result;
 
@@ -7,11 +8,13 @@ use colored::Colorize;
 
 use crate::matcher::file_matcher::TextFileLineMatcher;
 use crate::matcher::LineMatcher;
+use crate::utils::walk_dir;
 use crate::writer::printer::ColoredPrinter;
 use crate::writer::Writer;
 
 mod matcher;
 mod writer;
+mod utils;
 
 /// rgrep == grep by rust
 #[derive(Parser, Debug)]
@@ -33,22 +36,13 @@ async fn main() {
     let args = GrepArgs::parse();
     let start = SystemTime::now();
 
-    let mut path_container: Vec<String> = vec![args.path];
-    while let Some(curr) = path_container.pop() {
-        if fs::metadata(curr.clone()).unwrap().is_file() {
-            match grep_single_file(curr.clone(), args.pattern.clone()).await {
-                Ok(_) => {}
-                Err(err) => {println!("Err at {}: {}", curr.clone().green(), err)}
-            }
-            continue;
+    let pattern = args.pattern.as_str();
+    walk_dir(args.path, async move |file_path| {
+        match grep_single_file(file_path.clone(), pattern.to_string()).await {
+            Ok(_) => {}
+            Err(err) => {println!("Err at {}: {}", file_path.green(), err)}
         }
-
-        for entry in fs::read_dir(curr.clone()).unwrap() {
-            let path = entry.unwrap().path();
-            let path_of_string = path.clone().into_os_string().into_string().unwrap();
-            path_container.push(path_of_string)
-        }
-    }
+    }).await.unwrap();
 
     if args.debug {
         let duration = start.elapsed().unwrap();
